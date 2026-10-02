@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── M1 seed: users + audit. Catalog/inventory/ledger tables arrive with their modules. ──
+
+enum Role {
+  ADMIN
+  ACCOUNTANT
+  WAREHOUSE
+  BOOKER
+  SALESMAN
+  COUNTER
+}
+
+model User {
+  id           String     @id @default(cuid())
+  username     String     @unique
+  passwordHash String
+  fullName     String
+  role         Role
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  auditLogs    AuditLog[]
+}
+
+model AuditLog {
+  id        BigInt   @id @default(autoincrement())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ── M2: catalog master data ──
+
+enum TaxPolicy {
+  ABSORB
+  STRICT
+}
+
+model Company {
+  id          String             @id @default(cuid())
+  code        String             @unique // short code, e.g. GSK
+  name        String
+  taxPolicies TaxPolicyHistory[]
+  products    Product[]
+  suppliers   Supplier[]
+  createdAt   DateTime           @default(now())
+}
+
+// One row per policy decision, dated. Policies change; history never rewritten.
+model TaxPolicyHistory {
+  id            String    @id @default(cuid())
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
+  policy        TaxPolicy
+  effectiveFrom DateTime
+  createdAt     DateTime  @default(now())
+
+  @@index([companyId, effectiveFrom])
+}
+
+// Date-effective GST rate table (FILER 0.5% / NON-FILER 2.5% today; gov can change).
+model TaxRate {
+  id            String              @id @default(cuid())
+  kind          CustomerFilerStatus
+  ratePct       Decimal             @db.Decimal(5, 4)
+  effectiveFrom DateTime
+  createdAt     DateTime            @default(now())
+
+  @@index([kind, effectiveFrom])
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  code              String   @unique // SAME ID as old pad/ERP — FR-1
+  name              String
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id])
+  pack              String?
+  salePriceKs       BigInt // rupees *1000 (millis) — exact integer math, no float
+  taxAbsorbOverride Boolean? // null = follow company policy
+  attributes        Json? // odd fields from old system
+  active            Boolean  @default(true)
+  batches           Batch[]
+  createdAt         DateTime @default(now())
+}
+
+model Batch {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  batchNo     String
+  mfgDate     DateTime?
+  expiry      DateTime
+  costPriceKs BigInt
+  createdAt   DateTime  @default(now())
+
+  @@unique([productId, batchNo])
+  @@index([expiry])
+}
+
+enum CustomerType {
+  REGULAR
+  SALESMAN
+  PREPAID
+}
+
+enum CustomerFilerStatus {
+  FILER
+  NON_FILER
+}
+
+model Customer {
+  id                String              @id @default(cuid())
+  code              String              @unique
+  name              String
+  type              CustomerType        @default(REGULAR)
+  filerStatus       CustomerFilerStatus @default(NON_FILER)
+  creditLimitKs     BigInt              @default(0) // 0 = no limit; v1: display-only (no blocking), PREPAID gated at order time
+  territoryId       String?
+  territory         Territory?          @relation(fields: [territoryId], references: [id])
+  salesmanId        String? // linked salesman for "on behalf of" routing
+  salesman          Customer?           @relation("SalesmanCustomers", fields: [salesmanId], references: [id])
+  salesmanCustomers Customer[]          @relation("SalesmanCustomers")
+  openingBalanceKs  BigInt              @default(0)
+  active            Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+}
+
+model Supplier {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id]) // suppliers are the manufacturers/distributors we buy from
+  openingBalanceKs BigInt   @default(0) // positive = we owe them
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+model Territory {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  orderDay    Int? // 0=Sun..6=Sat — weekly area calendar (M10)
+  deliveryDay Int?
+  customers   Customer[]
+  createdAt   DateTime   @default(now())
+}
+
+model Warehouse {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  kind      WarehouseKind @default(MAIN)
+  createdAt DateTime      @default(now())
+}
+
+enum WarehouseKind {
+  MAIN
+  VAN
+  QUARANTINE
+}
