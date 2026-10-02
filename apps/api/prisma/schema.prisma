@@ -31,6 +31,7 @@ model User {
   createdAt    DateTime        @default(now())
   auditLogs    AuditLog[]
   stockDocs    StockDocument[]
+  vouchers     Voucher[]
 }
 
 model AuditLog {
@@ -141,18 +142,20 @@ model Customer {
   salesmanId          String? // linked salesman for "on behalf of" routing
   salesman            Customer?           @relation("SalesmanCustomers", fields: [salesmanId], references: [id])
   salesmanCustomers   Customer[]          @relation("SalesmanCustomers")
+  journalLines        JournalLine[]
   openingBalancePaisa Int                 @default(0)
   active              Boolean             @default(true)
   createdAt           DateTime            @default(now())
 }
 
 model Supplier {
-  id                  String   @id @default(cuid())
+  id                  String        @id @default(cuid())
   companyId           String
-  company             Company  @relation(fields: [companyId], references: [id]) // suppliers = manufacturers/distributors we buy from
-  openingBalancePaisa Int      @default(0) // positive = we owe them
-  active              Boolean  @default(true)
-  createdAt           DateTime @default(now())
+  company             Company       @relation(fields: [companyId], references: [id]) // suppliers = manufacturers/distributors we buy from
+  openingBalancePaisa Int           @default(0) // positive = we owe them
+  journalLines        JournalLine[]
+  active              Boolean       @default(true)
+  createdAt           DateTime      @default(now())
 }
 
 model Territory {
@@ -221,4 +224,62 @@ model StockMovement {
 
   @@index([productId, batchId, warehouseId])
   @@index([docId])
+}
+
+// M4: money ledger. A voucher IS the double-entry journal header (1:1);
+// its JournalLines must balance (Dr sum = Cr sum, enforced in service + e2e).
+// Balances are always computed from history (same rule as stock).
+
+enum Account {
+  CASH
+  BANK
+  AR // receivable: customer owes us (line tagged customerId)
+  AP // payable: we owe supplier (line tagged supplierId)
+  SALES
+  SALES_RETURN
+  TAX_CHARGED // GST charged to stores (strict companies) - M7 posts here
+  TAX_ABSORBED // GST absorbed for stores, recoverable from companies - M7/M8
+  INVENTORY
+  EXPENSE
+  OPENING_EQUITY
+}
+
+enum VoucherKind {
+  CASH_RECEIPT
+  BANK_RECEIPT
+  CASH_PAYMENT
+  BANK_PAYMENT
+  EXPENSE
+  JOURNAL
+}
+
+model Voucher {
+  id        Int           @id @default(autoincrement())
+  kind      VoucherKind
+  date      DateTime      @default(now())
+  memo      String?
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id])
+  lines     JournalLine[]
+  createdAt DateTime      @default(now())
+
+  @@index([date])
+  @@index([kind])
+}
+
+model JournalLine {
+  id          Int       @id @default(autoincrement())
+  voucherId   Int
+  voucher     Voucher   @relation(fields: [voucherId], references: [id])
+  account     Account
+  debitPaisa  Int       @default(0)
+  creditPaisa Int       @default(0)
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  supplierId  String?
+  supplier    Supplier? @relation(fields: [supplierId], references: [id])
+  memo        String?
+
+  @@index([account, customerId])
+  @@index([account, supplierId])
 }
