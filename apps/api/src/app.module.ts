@@ -7,9 +7,10 @@ import { CatalogModule } from './catalog/catalog.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
+import { PrismaExceptionFilterProvider } from './prisma/prisma-exception.filter';
 
 @Module({
   imports: [PrismaModule, AuthModule, UsersModule, CatalogModule, InventoryModule],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [PrismaExceptionFilterProvider, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}
