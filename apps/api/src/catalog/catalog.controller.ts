@@ -13,7 +13,7 @@ class CreateCompanyDto {
 class SetPolicyDto {
   @IsEnum(['ABSORB', 'STRICT']) policy!: 'ABSORB' | 'STRICT';
   @IsString() effectiveFrom!: string; // ISO date
-  @IsString() reason?: string;
+  @IsOptional() @IsString() reason?: string;
 }
 
 class CreateProductDto {

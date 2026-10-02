@@ -1,24 +1,59 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Login from './pages/Login';
+import { api, clearSession, getUser, type AuthUser } from './lib/api';
+import { Companies, Products, Customers, Territories, Warehouses, Suppliers, Users } from './pages/Masters';
+
+const TABS = [
+  { id: 'companies', label: 'Companies', comp: Companies, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
+  { id: 'products', label: 'Products', comp: Products, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
+  { id: 'customers', label: 'Customers', comp: Customers, roles: ['ADMIN', 'ACCOUNTANT', 'BOOKER', 'SALESMAN'] },
+  { id: 'territories', label: 'Territories', comp: Territories, roles: ['ADMIN', 'ACCOUNTANT'] },
+  { id: 'warehouses', label: 'Warehouses', comp: Warehouses, roles: ['ADMIN', 'WAREHOUSE'] },
+  { id: 'suppliers', label: 'Suppliers', comp: Suppliers, roles: ['ADMIN', 'ACCOUNTANT'] },
+  { id: 'users', label: 'Users', comp: Users, roles: ['ADMIN'] },
+] ;
 
 export default function App() {
-  const health = useQuery({
-    queryKey: ['health'],
-    queryFn: async () => {
-      const res = await fetch('/api/health');
-      if (!res.ok) throw new Error('API down');
-      return res.json();
-    },
-    refetchInterval: 30_000,
-  });
+  const [user, setUser] = useState<AuthUser | null>(() => getUser());
+  const [tab, setTab] = useState<string>('companies');
+
+  useEffect(() => {
+    document.title = 'PHRAMA';
+  }, []);
+
+  if (!user) return <Login onLoggedIn={setUser} />;
+
+  const visibleTabs = TABS.filter((t) => t.roles.includes(user.role));
+  const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
 
   return (
-    <main style={{ fontFamily: 'system-ui', padding: '4rem 2rem', maxWidth: 720, margin: '0 auto' }}>
-      <h1>PHRAMA</h1>
-      <p>Pharmaceutical Distribution Management System — Malakand Division</p>
-      <p>
-        API status:{' '}
-        {health.isPending ? 'checking…' : health.isError ? '❌ down' : `✅ ${health.data.status}`}
-      </p>
-    </main>
+    <div className="app">
+      <header>
+        <strong>PHRAMA</strong>
+        <span className="who">
+          {user.username} · {user.role}
+        </span>
+        <button
+          className="link"
+          onClick={() => {
+            clearSession();
+            setUser(null);
+          }}
+        >
+          Sign out
+        </button>
+      </header>
+      <nav>
+        {visibleTabs.map((t) => (
+          <button key={t.id} className={t.id === active.id ? 'tab active' : 'tab'} onClick={() => setTab(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+      <main>
+        <active.comp />
+      </main>
+    </div>
   );
 }
