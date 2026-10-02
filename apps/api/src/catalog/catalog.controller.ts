@@ -1,4 +1,4 @@
-import { Controller, Body, Post, Get, Param, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Body, Post, Get, Param, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { IsString, IsOptional, IsEnum, IsInt, Min } from 'class-validator';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
@@ -49,6 +49,14 @@ class CreateTerritoryDto {
   @IsString() name!: string;
   @IsOptional() @IsInt() orderDay?: number;
   @IsOptional() @IsInt() deliveryDay?: number;
+}
+
+class CreateBatchDto {
+  @IsString() productId!: string;
+  @IsString() batchNo!: string;
+  @IsString() expiry!: string; // ISO date
+  @IsInt() @Min(0) costPricePaisa!: number;
+  @IsOptional() @IsString() mfgDate?: string;
 }
 
 class CreateWarehouseDto {
@@ -140,6 +148,18 @@ export class CatalogController {
   @Roles('ADMIN', 'ACCOUNTANT')
   createTerritory(@Body() dto: CreateTerritoryDto) {
     return this.catalog.createTerritory(dto);
+  }
+
+  // batches
+  @Get('batches')
+  batches(@Query('productId') productId?: string) {
+    return this.catalog.listBatches(productId);
+  }
+
+  @Post('batches')
+  @Roles('ADMIN', 'ACCOUNTANT', 'WAREHOUSE')
+  createBatch(@Body() dto: CreateBatchDto) {
+    return this.catalog.createBatch(dto);
   }
 
   // warehouses

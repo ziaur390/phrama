@@ -1,3 +1,6 @@
+// PHRAMA schema — one module block per build step (module plan docs/MODULE-PLAN.md)
+// M1: users/audit. M2: catalog. M3: stock ledger. Money = integer paisa, never float.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -19,18 +22,19 @@ enum Role {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  username     String     @unique
+  id           String          @id @default(cuid())
+  username     String          @unique
   passwordHash String
   fullName     String
   role         Role
-  active       Boolean    @default(true)
-  createdAt    DateTime   @default(now())
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
   auditLogs    AuditLog[]
+  stockDocs    StockDocument[]
 }
 
 model AuditLog {
-  id        Int      @id @default(autoincrement())
+  id        BigInt   @id @default(autoincrement())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   action    String
@@ -84,29 +88,31 @@ model TaxRate {
 }
 
 model Product {
-  id                String   @id @default(cuid())
-  code              String   @unique // SAME ID as old pad/ERP — FR-1
+  id                String          @id @default(cuid())
+  code              String          @unique // SAME ID as old pad/ERP (FR-1)
   name              String
   companyId         String
-  company           Company  @relation(fields: [companyId], references: [id])
+  company           Company         @relation(fields: [companyId], references: [id])
   pack              String?
   salePricePaisa    Int // rupees *100 (paisa) — exact integer math, no float
   taxAbsorbOverride Boolean? // null = follow company policy
   attributes        Json? // odd fields from old system
-  active            Boolean  @default(true)
+  active            Boolean         @default(true)
   batches           Batch[]
-  createdAt         DateTime @default(now())
+  stockMovements    StockMovement[]
+  createdAt         DateTime        @default(now())
 }
 
 model Batch {
-  id             String    @id @default(cuid())
+  id             String          @id @default(cuid())
   productId      String
-  product        Product   @relation(fields: [productId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
   batchNo        String
   mfgDate        DateTime?
   expiry         DateTime
   costPricePaisa Int
-  createdAt      DateTime  @default(now())
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
 
   @@unique([productId, batchNo])
   @@index([expiry])
@@ -129,7 +135,7 @@ model Customer {
   name                String
   type                CustomerType        @default(REGULAR)
   filerStatus         CustomerFilerStatus @default(NON_FILER)
-  creditLimitPaisa    Int                 @default(0) // 0 = no limit; v1: display-only (no blocking), PREPAID gated at order time
+  creditLimitPaisa    Int                 @default(0) // 0 = no limit; v1 display-only (no blocking), PREPAID gated at order time
   territoryId         String?
   territory           Territory?          @relation(fields: [territoryId], references: [id])
   salesmanId          String? // linked salesman for "on behalf of" routing
@@ -143,7 +149,7 @@ model Customer {
 model Supplier {
   id                  String   @id @default(cuid())
   companyId           String
-  company             Company  @relation(fields: [companyId], references: [id]) // suppliers are the manufacturers/distributors we buy from
+  company             Company  @relation(fields: [companyId], references: [id]) // suppliers = manufacturers/distributors we buy from
   openingBalancePaisa Int      @default(0) // positive = we owe them
   active              Boolean  @default(true)
   createdAt           DateTime @default(now())
@@ -159,14 +165,60 @@ model Territory {
 }
 
 model Warehouse {
-  id        String        @id @default(cuid())
-  name      String        @unique
-  kind      WarehouseKind @default(MAIN)
-  createdAt DateTime      @default(now())
+  id             String          @id @default(cuid())
+  name           String          @unique
+  kind           WarehouseKind   @default(MAIN)
+  stockMovements StockMovement[]
+  createdAt      DateTime        @default(now())
 }
 
 enum WarehouseKind {
   MAIN
   VAN
   QUARANTINE
+}
+
+// ── M3: stock ledger — append-only movements; current stock = SUM(delta) ──
+
+enum StockDocKind {
+  OPENING
+  TRANSFER
+  ADJUSTMENT
+}
+
+enum StockMoveKind {
+  OPENING
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+}
+
+model StockDocument {
+  id        String          @id @default(cuid())
+  kind      StockDocKind
+  reason    String? // mandatory for ADJUSTMENT
+  userId    String?
+  user      User?           @relation(fields: [userId], references: [id])
+  createdAt DateTime        @default(now())
+  movements StockMovement[]
+
+  @@index([createdAt])
+}
+
+model StockMovement {
+  id          String        @id @default(cuid())
+  docId       String
+  doc         StockDocument @relation(fields: [docId], references: [id])
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id])
+  batchId     String
+  batch       Batch         @relation(fields: [batchId], references: [id])
+  warehouseId String
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
+  kind        StockMoveKind
+  delta       Int // signed: +IN / -OUT; stock = SUM(delta)
+  createdAt   DateTime      @default(now())
+
+  @@index([productId, batchId, warehouseId])
+  @@index([docId])
 }

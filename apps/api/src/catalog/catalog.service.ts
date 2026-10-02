@@ -97,5 +97,24 @@ export class CatalogService {
     return this.prisma.warehouse.create({ data: dto });
   }
 
-  // ⚠️ BLOCKED ON M3: batches belong with stock ledger module (expiry drives FEFO)
+  // batches (M3): batches exist together with their stock
+  listBatches(productId?: string) {
+    return this.prisma.batch.findMany({
+      where: productId ? { productId } : undefined,
+      include: { product: { select: { code: true, name: true } } },
+      orderBy: { expiry: 'asc' },
+    });
+  }
+
+  createBatch(dto: { productId: string; batchNo: string; expiry: string; costPricePaisa: number; mfgDate?: string }) {
+    return this.prisma.batch.create({
+      data: {
+        productId: dto.productId,
+        batchNo: dto.batchNo,
+        expiry: new Date(dto.expiry),
+        costPricePaisa: dto.costPricePaisa,
+        ...(dto.mfgDate ? { mfgDate: new Date(dto.mfgDate) } : {}),
+      },
+    });
+  }
 }

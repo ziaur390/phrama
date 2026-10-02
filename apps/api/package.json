@@ -53,7 +53,7 @@
       "ts"
     ],
     "rootDir": "src",
-    "testRegex": ".*[.]spec[.]ts$",
+    "testRegex": ".*([.]spec|[.]e2e-spec)[.]ts$",
     "transform": {
       "^.+.ts$": [
         "ts-jest",
