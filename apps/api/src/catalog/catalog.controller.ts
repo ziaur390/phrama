@@ -21,7 +21,7 @@ class CreateProductDto {
   @IsString() name!: string;
   @IsString() companyId!: string;
   @IsOptional() @IsString() pack?: string;
-  @IsInt() @Min(0) salePriceKs!: number;
+  @IsInt() @Min(0) salePricePaisa!: number;
 }
 
 class CreateCustomerDto {
@@ -29,8 +29,8 @@ class CreateCustomerDto {
   @IsString() name!: string;
   @IsOptional() @IsEnum(['REGULAR', 'SALESMAN', 'PREPAID']) type?: string;
   @IsOptional() @IsEnum(['FILER', 'NON_FILER']) filerStatus?: string;
-  @IsOptional() @IsInt() @Min(0) creditLimitKs?: number;
-  @IsOptional() @IsInt() @Min(0) openingBalanceKs?: number;
+  @IsOptional() @IsInt() @Min(0) creditLimitPaisa?: number;
+  @IsOptional() @IsInt() @Min(0) openingBalancePaisa?: number;
   @IsOptional() @IsString() territoryId?: string;
   @IsOptional() @IsString() salesmanId?: string;
 }
@@ -42,7 +42,7 @@ class SetFilerStatusDto {
 
 class CreateSupplierDto {
   @IsString() companyId!: string;
-  @IsOptional() @IsInt() @Min(0) openingBalanceKs?: number;
+  @IsOptional() @IsInt() @Min(0) openingBalancePaisa?: number;
 }
 
 class CreateTerritoryDto {
@@ -88,7 +88,7 @@ export class CatalogController {
   @Post('products')
   @Roles('ADMIN', 'ACCOUNTANT')
   createProduct(@Body() dto: CreateProductDto) {
-    return this.catalog.createProduct({ ...dto, salePriceKs: BigInt(dto.salePriceKs) });
+    return this.catalog.createProduct(dto);
   }
 
   // customers
@@ -104,8 +104,8 @@ export class CatalogController {
       ...dto,
       type: dto.type as any,
       filerStatus: dto.filerStatus as any,
-      creditLimitKs: dto.creditLimitKs != null ? BigInt(dto.creditLimitKs) : undefined,
-      openingBalanceKs: dto.openingBalanceKs != null ? BigInt(dto.openingBalanceKs) : undefined,
+      creditLimitPaisa: dto.creditLimitPaisa,
+      openingBalancePaisa: dto.openingBalancePaisa,
     });
   }
 
@@ -126,7 +126,7 @@ export class CatalogController {
   createSupplier(@Body() dto: CreateSupplierDto) {
     return this.catalog.createSupplier({
       companyId: dto.companyId,
-      openingBalanceKs: dto.openingBalanceKs != null ? BigInt(dto.openingBalanceKs) : undefined,
+      openingBalancePaisa: dto.openingBalancePaisa,
     });
   }
 

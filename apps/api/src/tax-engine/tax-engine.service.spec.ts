@@ -32,28 +32,28 @@ describe('TaxEngineService — owner-confirmed examples', () => {
       lineId: 'l1',
       companyId: 'gsk',
       qty: 1,
-      unitPriceKs: 100_000n, // Rs. 100.000
+      unitPricePaisa: 10_000, // Rs. 100.000
       customerFilerStatus: 'FILER',
       invoiceDate: new Date(),
     });
-    expect(gskLine.taxChargedKs).toBe(500n); // Rs. 0.500
-    expect(gskLine.taxAbsorbedKs).toBe(0n);
+    expect(gskLine.taxChargedPaisa).toBe(50); // Rs. 0.500
+    expect(gskLine.taxAbsorbedPaisa).toBe(0);
 
     mockLookups('ABSORB');
     const abbottLine = await engine.computeLine({
       lineId: 'l2',
       companyId: 'abbott',
       qty: 1,
-      unitPriceKs: 100_000n,
+      unitPricePaisa: 10_000,
       customerFilerStatus: 'FILER',
       invoiceDate: new Date(),
     });
-    expect(abbottLine.taxChargedKs).toBe(0n);
-    expect(abbottLine.taxAbsorbedKs).toBe(500n); // Rs. 0.500 → company statement
+    expect(abbottLine.taxChargedPaisa).toBe(0);
+    expect(abbottLine.taxAbsorbedPaisa).toBe(50); // Rs. 0.500 → company statement
 
     // Store pays 100 + 0.50 (GSK tax) + 100 = 200.50
-    const storeTotalKs = 100_000n + gskLine.taxChargedKs + (100_000n * BigInt(1)) + abbottLine.taxChargedKs;
-    expect(storeTotalKs).toBe(200_500n);
+    const storeTotalPaisa = 10_000 + gskLine.taxChargedPaisa + 10_000 + abbottLine.taxChargedPaisa;
+    expect(storeTotalPaisa).toBe(20_050);
   });
 
   it('Example 2 — NON-FILER store: GSK strict charges 2.50, Abbott absorbs 2.50 → store pays 202.50', async () => {
@@ -62,25 +62,25 @@ describe('TaxEngineService — owner-confirmed examples', () => {
       lineId: 'l1',
       companyId: 'gsk',
       qty: 1,
-      unitPriceKs: 100_000n,
+      unitPricePaisa: 10_000,
       customerFilerStatus: 'NON_FILER',
       invoiceDate: new Date(),
     });
-    expect(gskLine.taxChargedKs).toBe(2_500n); // Rs. 2.500
+    expect(gskLine.taxChargedPaisa).toBe(250); // Rs. 2.500
 
     mockLookups('ABSORB');
     const abbottLine = await engine.computeLine({
       lineId: 'l2',
       companyId: 'abbott',
       qty: 1,
-      unitPriceKs: 100_000n,
+      unitPricePaisa: 10_000,
       customerFilerStatus: 'NON_FILER',
       invoiceDate: new Date(),
     });
-    expect(abbottLine.taxAbsorbedKs).toBe(2_500n);
+    expect(abbottLine.taxAbsorbedPaisa).toBe(250);
 
-    const storeTotalKs = 100_000n + gskLine.taxChargedKs + 100_000n + abbottLine.taxChargedKs;
-    expect(storeTotalKs).toBe(202_500n);
+    const storeTotalPaisa = 10_000 + gskLine.taxChargedPaisa + 10_000 + abbottLine.taxChargedPaisa;
+    expect(storeTotalPaisa).toBe(20_250);
   });
 
   it('throws when no rate is effective yet (no silent zero-tax)', async () => {
@@ -91,7 +91,7 @@ describe('TaxEngineService — owner-confirmed examples', () => {
         lineId: 'l1',
         companyId: 'gsk',
         qty: 1,
-        unitPriceKs: 100_000n,
+        unitPricePaisa: 10_000,
         customerFilerStatus: 'FILER',
         invoiceDate: new Date('1999-01-01'),
       }),

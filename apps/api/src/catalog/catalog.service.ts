@@ -35,10 +35,10 @@ export class CatalogService {
     name: string;
     companyId: string;
     pack?: string;
-    salePriceKs: bigint;
+    salePricePaisa: number;
     attributes?: any;
   }) {
-    return this.prisma.product.create({ data: dto });
+    return this.prisma.product.create({ data: dto as any });
   }
 
   // ── customers ──
@@ -51,8 +51,8 @@ export class CatalogService {
     name: string;
     type?: 'REGULAR' | 'SALESMAN' | 'PREPAID';
     filerStatus?: 'FILER' | 'NON_FILER';
-    creditLimitKs?: bigint;
-    openingBalanceKs?: bigint;
+    creditLimitPaisa?: number;
+    openingBalancePaisa?: number;
     territoryId?: string;
     salesmanId?: string;
   }) {
@@ -75,7 +75,7 @@ export class CatalogService {
     return this.prisma.supplier.findMany({ include: { company: { select: { code: true, name: true } } }, orderBy: { id: 'asc' } });
   }
 
-  createSupplier(dto: { companyId: string; openingBalanceKs?: bigint }) {
+  createSupplier(dto: { companyId: string; openingBalancePaisa?: number }) {
     return this.prisma.supplier.create({ data: dto });
   }
 

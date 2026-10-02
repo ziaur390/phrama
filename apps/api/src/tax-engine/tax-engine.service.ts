@@ -6,23 +6,21 @@ export interface LineInput {
   lineId: string;
   companyId: string;
   qty: number;
-  unitPriceKs: bigint;
+  unitPricePaisa: number;
   customerFilerStatus: CustomerFilerStatus;
   invoiceDate: Date;
 }
 
 export interface LineTaxResult {
   lineId: string;
-  taxChargedKs: bigint; // added to what the store pays (STRICT companies)
-  taxAbsorbedKs: bigint; // tracked for company reimbursement (ABSORBING companies)
+  taxChargedPaisa: number; // added to what the store pays (STRICT companies)
+  taxAbsorbedPaisa: number; // tracked for company reimbursement (ABSORBING companies)
 }
 
-/** Millis-based rounding: money is integer paisa-millis, no floats. */
-function pct(amountKs: bigint, ratePct: number): bigint {
-  // amount * rate/100, rounding half-up at millis precision
-  const millis = (amountKs * BigInt(Math.round(ratePct * 1000))) / 100_000n;
-  const remainder = (amountKs * BigInt(Math.round(ratePct * 1000))) % 100_000n;
-  return remainder >= 50_000n ? millis + 1n : millis;
+/** Paisa-based rounding: money is integer paisa, no floats. Half-up to whole paisa. */
+function pct(amountPaisa: number, ratePct: number): number {
+  const raw = (amountPaisa * ratePct) / 100;
+  return Math.round(raw);
 }
 
 @Injectable()
@@ -47,12 +45,12 @@ export class TaxEngineService {
     });
     if (!rateRow) throw new BadRequestException(`No tax rate for ${input.customerFilerStatus} effective ${input.invoiceDate.toISOString()}`);
 
-    const lineValueKs = input.unitPriceKs * BigInt(input.qty);
-    const taxKs = pct(lineValueKs, Number(rateRow.ratePct));
+    const lineValuePaisa = input.unitPricePaisa * input.qty;
+    const taxPaisa = pct(lineValuePaisa, Number(rateRow.ratePct));
 
     if (policyRow.policy === 'STRICT') {
-      return { lineId: input.lineId, taxChargedKs: taxKs, taxAbsorbedKs: 0n };
+      return { lineId: input.lineId, taxChargedPaisa: taxPaisa, taxAbsorbedPaisa: 0 };
     }
-    return { lineId: input.lineId, taxChargedKs: 0n, taxAbsorbedKs: taxKs };
+    return { lineId: input.lineId, taxChargedPaisa: 0, taxAbsorbedPaisa: taxPaisa };
   }
 }

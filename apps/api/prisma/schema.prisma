@@ -30,7 +30,7 @@ model User {
 }
 
 model AuditLog {
-  id        BigInt   @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   action    String
@@ -90,7 +90,7 @@ model Product {
   companyId         String
   company           Company  @relation(fields: [companyId], references: [id])
   pack              String?
-  salePriceKs       BigInt // rupees *1000 (millis) — exact integer math, no float
+  salePricePaisa    Int // rupees *100 (paisa) — exact integer math, no float
   taxAbsorbOverride Boolean? // null = follow company policy
   attributes        Json? // odd fields from old system
   active            Boolean  @default(true)
@@ -99,14 +99,14 @@ model Product {
 }
 
 model Batch {
-  id          String    @id @default(cuid())
-  productId   String
-  product     Product   @relation(fields: [productId], references: [id])
-  batchNo     String
-  mfgDate     DateTime?
-  expiry      DateTime
-  costPriceKs BigInt
-  createdAt   DateTime  @default(now())
+  id             String    @id @default(cuid())
+  productId      String
+  product        Product   @relation(fields: [productId], references: [id])
+  batchNo        String
+  mfgDate        DateTime?
+  expiry         DateTime
+  costPricePaisa Int
+  createdAt      DateTime  @default(now())
 
   @@unique([productId, batchNo])
   @@index([expiry])
@@ -124,29 +124,29 @@ enum CustomerFilerStatus {
 }
 
 model Customer {
-  id                String              @id @default(cuid())
-  code              String              @unique
-  name              String
-  type              CustomerType        @default(REGULAR)
-  filerStatus       CustomerFilerStatus @default(NON_FILER)
-  creditLimitKs     BigInt              @default(0) // 0 = no limit; v1: display-only (no blocking), PREPAID gated at order time
-  territoryId       String?
-  territory         Territory?          @relation(fields: [territoryId], references: [id])
-  salesmanId        String? // linked salesman for "on behalf of" routing
-  salesman          Customer?           @relation("SalesmanCustomers", fields: [salesmanId], references: [id])
-  salesmanCustomers Customer[]          @relation("SalesmanCustomers")
-  openingBalanceKs  BigInt              @default(0)
-  active            Boolean             @default(true)
-  createdAt         DateTime            @default(now())
+  id                  String              @id @default(cuid())
+  code                String              @unique
+  name                String
+  type                CustomerType        @default(REGULAR)
+  filerStatus         CustomerFilerStatus @default(NON_FILER)
+  creditLimitPaisa    Int                 @default(0) // 0 = no limit; v1: display-only (no blocking), PREPAID gated at order time
+  territoryId         String?
+  territory           Territory?          @relation(fields: [territoryId], references: [id])
+  salesmanId          String? // linked salesman for "on behalf of" routing
+  salesman            Customer?           @relation("SalesmanCustomers", fields: [salesmanId], references: [id])
+  salesmanCustomers   Customer[]          @relation("SalesmanCustomers")
+  openingBalancePaisa Int                 @default(0)
+  active              Boolean             @default(true)
+  createdAt           DateTime            @default(now())
 }
 
 model Supplier {
-  id               String   @id @default(cuid())
-  companyId        String
-  company          Company  @relation(fields: [companyId], references: [id]) // suppliers are the manufacturers/distributors we buy from
-  openingBalanceKs BigInt   @default(0) // positive = we owe them
-  active           Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id]) // suppliers are the manufacturers/distributors we buy from
+  openingBalancePaisa Int      @default(0) // positive = we owe them
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
 }
 
 model Territory {
