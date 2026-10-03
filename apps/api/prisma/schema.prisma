@@ -89,31 +89,34 @@ model TaxRate {
 }
 
 model Product {
-  id                String          @id @default(cuid())
-  code              String          @unique // SAME ID as old pad/ERP (FR-1)
+  id                String              @id @default(cuid())
+  code              String              @unique // SAME ID as old pad/ERP (FR-1)
   name              String
   companyId         String
-  company           Company         @relation(fields: [companyId], references: [id])
+  company           Company             @relation(fields: [companyId], references: [id])
   pack              String?
   salePricePaisa    Int // rupees *100 (paisa) — exact integer math, no float
   taxAbsorbOverride Boolean? // null = follow company policy
   attributes        Json? // odd fields from old system
-  active            Boolean         @default(true)
+  active            Boolean             @default(true)
   batches           Batch[]
   stockMovements    StockMovement[]
-  createdAt         DateTime        @default(now())
+  poItems           PurchaseOrderItem[]
+  receiptItems      StockReceiptItem[]
+  createdAt         DateTime            @default(now())
 }
 
 model Batch {
-  id             String          @id @default(cuid())
+  id             String             @id @default(cuid())
   productId      String
-  product        Product         @relation(fields: [productId], references: [id])
+  product        Product            @relation(fields: [productId], references: [id])
   batchNo        String
   mfgDate        DateTime?
   expiry         DateTime
   costPricePaisa Int
   stockMovements StockMovement[]
-  createdAt      DateTime        @default(now())
+  receiptItems   StockReceiptItem[]
+  createdAt      DateTime           @default(now())
 
   @@unique([productId, batchNo])
   @@index([expiry])
@@ -149,13 +152,15 @@ model Customer {
 }
 
 model Supplier {
-  id                  String        @id @default(cuid())
+  id                  String          @id @default(cuid())
   companyId           String
-  company             Company       @relation(fields: [companyId], references: [id]) // suppliers = manufacturers/distributors we buy from
-  openingBalancePaisa Int           @default(0) // positive = we owe them
+  company             Company         @relation(fields: [companyId], references: [id]) // suppliers = manufacturers/distributors we buy from
+  openingBalancePaisa Int             @default(0) // positive = we owe them
   journalLines        JournalLine[]
-  active              Boolean       @default(true)
-  createdAt           DateTime      @default(now())
+  active              Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  purchaseOrders      PurchaseOrder[]
+  stockReceipts       StockReceipt[]
 }
 
 model Territory {
@@ -172,6 +177,7 @@ model Warehouse {
   name           String          @unique
   kind           WarehouseKind   @default(MAIN)
   stockMovements StockMovement[]
+  stockReceipts  StockReceipt[]
   createdAt      DateTime        @default(now())
 }
 
@@ -187,6 +193,7 @@ enum StockDocKind {
   OPENING
   TRANSFER
   ADJUSTMENT
+  RECEIPT
 }
 
 enum StockMoveKind {
@@ -194,6 +201,7 @@ enum StockMoveKind {
   TRANSFER_OUT
   TRANSFER_IN
   ADJUSTMENT
+  RECEIPT
 }
 
 model StockDocument {
@@ -204,6 +212,8 @@ model StockDocument {
   user      User?           @relation(fields: [userId], references: [id])
   createdAt DateTime        @default(now())
   movements StockMovement[]
+  receiptId Int?            @unique
+  receipt   StockReceipt?
 
   @@index([createdAt])
 }
@@ -282,4 +292,72 @@ model JournalLine {
 
   @@index([account, customerId])
   @@index([account, supplierId])
+}
+
+// M6: procurement. PO = operational doc (status may advance);
+// receipts are immutable documents posting stock + payable in ONE transaction.
+
+enum PurchaseOrderStatus {
+  PENDING
+  PARTIAL
+  RECEIVED
+}
+
+model PurchaseOrder {
+  id           Int                 @id @default(autoincrement())
+  supplierId   String
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  status       PurchaseOrderStatus @default(PENDING)
+  date         DateTime            @default(now())
+  expectedDate DateTime?
+  memo         String?
+  userId       String
+  items        PurchaseOrderItem[]
+  receipts     StockReceipt[]
+  createdAt    DateTime            @default(now())
+
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id            Int           @id @default(autoincrement())
+  poId          Int
+  po            PurchaseOrder @relation(fields: [poId], references: [id])
+  productId     String
+  product       Product       @relation(fields: [productId], references: [id])
+  orderedQty    Int
+  unitCostPaisa Int
+
+  @@unique([poId, productId])
+}
+
+model StockReceipt {
+  id          Int                @id @default(autoincrement())
+  poId        Int
+  po          PurchaseOrder      @relation(fields: [poId], references: [id])
+  supplierId  String
+  supplier    Supplier           @relation(fields: [supplierId], references: [id])
+  warehouseId String
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
+  userId      String
+  memo        String?
+  stockDocId  String?            @unique
+  stockDoc    StockDocument?     @relation(fields: [stockDocId], references: [id])
+  date        DateTime           @default(now())
+  items       StockReceiptItem[]
+  createdAt   DateTime           @default(now())
+
+  @@index([poId])
+}
+
+model StockReceiptItem {
+  id            Int          @id @default(autoincrement())
+  receiptId     Int
+  receipt       StockReceipt @relation(fields: [receiptId], references: [id])
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id])
+  batchId       String
+  batch         Batch        @relation(fields: [batchId], references: [id])
+  receivedQty   Int
+  unitCostPaisa Int
 }

@@ -6,12 +6,13 @@ import { UsersModule } from './users/users.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { FinanceModule } from './finance/finance.module';
+import { ProcurementModule } from './procurement/procurement.module';
 import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { RolesGuard } from './auth/roles.guard';
 import { PrismaExceptionFilterProvider } from './prisma/prisma-exception.filter';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CatalogModule, InventoryModule, FinanceModule],
+  imports: [PrismaModule, AuthModule, UsersModule, CatalogModule, InventoryModule, FinanceModule, ProcurementModule],
   providers: [PrismaExceptionFilterProvider, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

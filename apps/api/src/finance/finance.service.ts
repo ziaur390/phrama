@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { Account, VoucherKind } from '@prisma/client';
+import type { Account, Prisma, VoucherKind } from '@prisma/client';
 
 /**
  * Money ledger (M4). A voucher is the double-entry document; its lines balance.
@@ -10,6 +10,17 @@ import type { Account, VoucherKind } from '@prisma/client';
  * Journals:  arbitrary balanced lines (opening balances etc.)
  * Balances always computed from history - never stored.
  */
+
+export interface VoucherInput {
+  kind: VoucherKind;
+  date?: string;
+  memo?: string;
+  customerId?: string; // receipts
+  supplierId?: string; // payments
+  paidFrom?: 'CASH' | 'BANK'; // expenses
+  amountPaisa?: number; // non-journal kinds
+  lines?: JournalLineInput[]; // kind=JOURNAL
+}
 
 export interface JournalLineInput {
   account: Account;
@@ -40,32 +51,25 @@ export class FinanceService {
   /** Post a voucher of any kind. One transaction: voucher + balanced lines. */
   async postVoucher(
     userId: string,
-    input: {
-      kind: VoucherKind;
-      date?: string;
-      memo?: string;
-      customerId?: string; // receipts
-      supplierId?: string; // payments
-      paidFrom?: 'CASH' | 'BANK'; // expenses
-      amountPaisa?: number; // non-journal kinds
-      lines?: JournalLineInput[]; // kind=JOURNAL
-    },
+    input: VoucherInput,
   ) {
-    const lines = this.buildLines(input);
-    this.assertBalanced(lines);
-
-    const voucher = await this.prisma.$transaction(async (tx) => {
-      const v = await tx.voucher.create({
-        data: { kind: input.kind, memo: input.memo, userId, ...(input.date ? { date: new Date(input.date) } : {}) },
-      });
-      await tx.journalLine.createMany({ data: lines.map((l) => ({ ...l, voucherId: v.id })) });
-      return tx.voucher.findUnique({ where: { id: v.id }, include: { lines: true } });
-    });
+    const voucher = await this.prisma.$transaction((tx) => this.insertVoucher(tx, userId, input));
     return { ...voucher!, number: voucherNumber(input.kind, voucher!.id) };
   }
 
+  /** Used by other modules (procurement, sales) that must post money inside THEIR transaction. */
+  async insertVoucher(tx: Prisma.TransactionClient, userId: string, input: VoucherInput) {
+    const lines = this.buildLines(input);
+    this.assertBalanced(lines);
+    const v = await tx.voucher.create({
+      data: { kind: input.kind, memo: input.memo, userId, ...(input.date ? { date: new Date(input.date) } : {}) },
+    });
+    await tx.journalLine.createMany({ data: lines.map((l) => ({ ...l, voucherId: v.id })) });
+    return tx.voucher.findUnique({ where: { id: v.id }, include: { lines: true } });
+  }
+
   /** Built kinds construct their two lines; JOURNAL takes caller lines. */
-  private buildLines(input: Parameters<FinanceService['postVoucher']>[1]): JournalLineInput[] {
+  private buildLines(input: VoucherInput): JournalLineInput[] {
     const amt = input.amountPaisa;
     if (input.kind === 'CASH_RECEIPT' || input.kind === 'BANK_RECEIPT') {
       this.require(amt && amt > 0, 'amountPaisa must be positive');
