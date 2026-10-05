@@ -5,5 +5,6 @@ import { StockLedgerService } from './stock-ledger.service';
 @Module({
   controllers: [InventoryController],
   providers: [StockLedgerService],
+  exports: [StockLedgerService],
 })
 export class InventoryModule {}

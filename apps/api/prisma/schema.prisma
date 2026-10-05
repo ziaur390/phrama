@@ -157,6 +157,8 @@ model Customer {
   journalLines        JournalLine[]
   salesInvoices       SalesInvoice[]
   salesReturns        SalesReturn[]
+  bookerOrders        BookerOrder[]       @relation("OrderCustomer")
+  viaOrders           BookerOrder[]       @relation("OrderViaSalesman")
   openingBalancePaisa Int                 @default(0)
   active              Boolean             @default(true)
   createdAt           DateTime            @default(now())
@@ -530,4 +532,38 @@ model CompanyClaim {
   createdAt       DateTime    @default(now())
 
   @@index([companyId, status])
+}
+
+// ── M10: booker field sync. Orders taken offline on the phone land here;
+// idempotent by clientRef (the phone retries blindly); warehouse invoices them. ──
+
+enum BookerOrderStatus {
+  RECEIVED
+  INVOICED
+}
+
+model BookerOrder {
+  id            Int               @id @default(autoincrement())
+  clientRef     String            @unique // phone-side id: duplicate uploads collapse onto one order
+  customerId    String // the shop that ordered
+  customer      Customer          @relation("OrderCustomer", fields: [customerId], references: [id])
+  viaCustomerId String? // salesman routing: invoice billed to HIM, never his stores
+  viaCustomer   Customer?         @relation("OrderViaSalesman", fields: [viaCustomerId], references: [id])
+  bookerId      String // user id of the booker who took it
+  status        BookerOrderStatus @default(RECEIVED)
+  invoiceId     Int?              @unique
+  bookedAt      DateTime          @default(now())
+  syncedAt      DateTime          @default(now())
+  createdAt     DateTime          @default(now())
+  items         BookerOrderItem[]
+
+  @@index([status, createdAt])
+}
+
+model BookerOrderItem {
+  id        Int         @id @default(autoincrement())
+  orderId   Int
+  order     BookerOrder @relation(fields: [orderId], references: [id])
+  productId String
+  qty       Int
 }

@@ -9,5 +9,6 @@ import { SalesReturnService } from './returns.service';
   imports: [FinanceModule],
   controllers: [SalesController],
   providers: [SalesService, SalesReturnService, TaxEngineService],
+  exports: [SalesService, SalesReturnService],
 })
 export class SalesModule {}
