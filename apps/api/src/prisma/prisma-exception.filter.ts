@@ -22,7 +22,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       return res.status(404).json({ statusCode: 404, message: 'Record not found', error: 'Not Found' });
     }
 
-    console.error('[Prisma]', exception.code, exception.message);
+    console.error('[Prisma]', exception.code, exception.message, exception.stack?.slice(0, 400));
     return res.status(500).json({ statusCode: 500, message: 'Internal server error' });
   }
 }

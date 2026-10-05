@@ -56,13 +56,14 @@ enum TaxPolicy {
 }
 
 model Company {
-  id          String             @id @default(cuid())
-  code        String             @unique // short code, e.g. GSK
-  name        String
-  taxPolicies TaxPolicyHistory[]
-  products    Product[]
-  suppliers   Supplier[]
-  createdAt   DateTime           @default(now())
+  id            String             @id @default(cuid())
+  code          String             @unique // short code, e.g. GSK
+  name          String
+  taxPolicies   TaxPolicyHistory[]
+  products      Product[]
+  suppliers     Supplier[]
+  discountRules DiscountRule[]
+  createdAt     DateTime           @default(now())
 }
 
 // One row per policy decision, dated. Policies change; history never rewritten.
@@ -103,6 +104,9 @@ model Product {
   stockMovements    StockMovement[]
   poItems           PurchaseOrderItem[]
   receiptItems      StockReceiptItem[]
+  saleItems         SalesInvoiceItem[]
+  discountRules     DiscountRule[]
+  bonusRule         BonusRule?
   createdAt         DateTime            @default(now())
 }
 
@@ -116,6 +120,7 @@ model Batch {
   costPricePaisa Int
   stockMovements StockMovement[]
   receiptItems   StockReceiptItem[]
+  saleItems      SalesInvoiceItem[]
   createdAt      DateTime           @default(now())
 
   @@unique([productId, batchNo])
@@ -140,12 +145,14 @@ model Customer {
   type                CustomerType        @default(REGULAR)
   filerStatus         CustomerFilerStatus @default(NON_FILER)
   creditLimitPaisa    Int                 @default(0) // 0 = no limit; v1 display-only (no blocking), PREPAID gated at order time
+  standingDiscountPct Int                 @default(0) // customer terms layer of pricing
   territoryId         String?
   territory           Territory?          @relation(fields: [territoryId], references: [id])
   salesmanId          String? // linked salesman for "on behalf of" routing
   salesman            Customer?           @relation("SalesmanCustomers", fields: [salesmanId], references: [id])
   salesmanCustomers   Customer[]          @relation("SalesmanCustomers")
   journalLines        JournalLine[]
+  salesInvoices       SalesInvoice[]
   openingBalancePaisa Int                 @default(0)
   active              Boolean             @default(true)
   createdAt           DateTime            @default(now())
@@ -178,6 +185,7 @@ model Warehouse {
   kind           WarehouseKind   @default(MAIN)
   stockMovements StockMovement[]
   stockReceipts  StockReceipt[]
+  salesInvoices  SalesInvoice[]
   createdAt      DateTime        @default(now())
 }
 
@@ -194,6 +202,8 @@ enum StockDocKind {
   TRANSFER
   ADJUSTMENT
   RECEIPT
+  SALE
+  SALE_VOID
 }
 
 enum StockMoveKind {
@@ -202,18 +212,22 @@ enum StockMoveKind {
   TRANSFER_IN
   ADJUSTMENT
   RECEIPT
+  SALE
+  SALE_VOID
 }
 
 model StockDocument {
-  id        String          @id @default(cuid())
-  kind      StockDocKind
-  reason    String? // mandatory for ADJUSTMENT
-  userId    String?
-  user      User?           @relation(fields: [userId], references: [id])
-  createdAt DateTime        @default(now())
-  movements StockMovement[]
-  receiptId Int?            @unique
-  receipt   StockReceipt?
+  id            String          @id @default(cuid())
+  kind          StockDocKind
+  reason        String? // mandatory for ADJUSTMENT
+  userId        String?
+  user          User?           @relation(fields: [userId], references: [id])
+  createdAt     DateTime        @default(now())
+  movements     StockMovement[]
+  receiptId     Int?            @unique
+  receipt       StockReceipt?
+  saleInvoiceId Int?            @unique
+  saleInvoice   SalesInvoice?
 
   @@index([createdAt])
 }
@@ -261,6 +275,8 @@ enum VoucherKind {
   BANK_PAYMENT
   EXPENSE
   JOURNAL
+  CREDIT_NOTE
+  DEBIT_NOTE
 }
 
 model Voucher {
@@ -360,4 +376,75 @@ model StockReceiptItem {
   batch         Batch        @relation(fields: [batchId], references: [id])
   receivedQty   Int
   unitCostPaisa Int
+}
+
+// ── M7: sales engine. Invoices are immutable; corrections are Void / Credit Note / Debit Note.
+// Bonus (buy 10 get 1) posts as separate zero-price FOC lines that consume real stock. ──
+
+enum SalesChannel {
+  FRESH
+  COUNTER
+}
+
+enum InvoiceStatus {
+  POSTED
+  VOID
+}
+
+model SalesInvoice {
+  id          Int                @id @default(autoincrement())
+  customerId  String
+  customer    Customer           @relation(fields: [customerId], references: [id])
+  warehouseId String
+  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
+  channel     SalesChannel       @default(FRESH)
+  userId      String
+  bookerId    String?
+  date        DateTime           @default(now())
+  memo        String?
+  status      InvoiceStatus      @default(POSTED)
+  voidReason  String?
+  voidedBy    String?
+  voidedAt    DateTime?
+  stockDocId  String?            @unique
+  stockDoc    StockDocument?     @relation(fields: [stockDocId], references: [id])
+  items       SalesInvoiceItem[]
+  createdAt   DateTime           @default(now())
+
+  @@index([date])
+  @@index([customerId])
+}
+
+model SalesInvoiceItem {
+  id               Int          @id @default(autoincrement())
+  invoiceId        Int
+  invoice          SalesInvoice @relation(fields: [invoiceId], references: [id])
+  productId        String
+  product          Product      @relation(fields: [productId], references: [id])
+  batchId          String // frozen FEFO allocation
+  qty              Int
+  unitPricePaisa   Int // catalog price frozen at post time
+  discountPct      Int          @default(0) // slab + standing combined
+  isBonus          Boolean      @default(false) // FOC: zero price, zero tax
+  taxChargedPaisa  Int          @default(0) // frozen from tax engine on invoice date
+  taxAbsorbedPaisa Int          @default(0)
+  batch            Batch        @relation(fields: [batchId], references: [id])
+}
+
+model DiscountRule {
+  id          Int      @id @default(autoincrement())
+  companyId   String? // null = any company
+  company     Company? @relation(fields: [companyId], references: [id])
+  productId   String? // null = any product (with company scoping)
+  product     Product? @relation(fields: [productId], references: [id])
+  minQty      Int
+  discountPct Int
+}
+
+model BonusRule {
+  id        Int     @id @default(autoincrement())
+  productId String  @unique
+  product   Product @relation(fields: [productId], references: [id])
+  buyQty    Int
+  freeQty   Int
 }

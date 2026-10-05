@@ -38,6 +38,8 @@ const PREFIX: Record<VoucherKind, string> = {
   BANK_PAYMENT: 'BP',
   EXPENSE: 'EX',
   JOURNAL: 'JV',
+  CREDIT_NOTE: 'CN',
+  DEBIT_NOTE: 'DN',
 };
 
 export function voucherNumber(kind: VoucherKind, id: number): string {
