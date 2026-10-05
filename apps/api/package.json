@@ -6,7 +6,7 @@
     "start:dev": "nest start --watch",
     "build": "prisma generate && nest build",
     "start": "node dist/main.js",
-    "test": "jest",
+    "test": "jest --runInBand",
     "db:dev": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "seed": "ts-node prisma/seed.ts"
