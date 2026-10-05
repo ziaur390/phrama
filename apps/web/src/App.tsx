@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import { api, clearSession, getUser, type AuthUser } from './lib/api';
 import { Companies, Products, Customers, Territories, Warehouses, Suppliers, Users } from './pages/Masters';
 import { Dashboard } from './pages/Dashboard';
+import { Orders } from './pages/Orders';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', comp: Dashboard, roles: ['ADMIN'] },
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'warehouses', label: 'Warehouses', comp: Warehouses, roles: ['ADMIN', 'WAREHOUSE'] },
   { id: 'suppliers', label: 'Suppliers', comp: Suppliers, roles: ['ADMIN', 'ACCOUNTANT'] },
   { id: 'users', label: 'Users', comp: Users, roles: ['ADMIN'] },
+  { id: 'orders', label: 'Order Queue', comp: Orders, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
 ] ;
 
 export default function App() {
