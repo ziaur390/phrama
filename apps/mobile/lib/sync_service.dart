@@ -33,7 +33,7 @@ class SyncService {
   }
 
   Future<Database> _openDb() async {
-    return sqfliteDatabaseFactory.openDatabase(
+    return openDatabase(
       'phrama_booker.db',
       version: 1,
       onCreate: (db, version) async {
@@ -151,12 +151,17 @@ class SyncService {
       );
       if (res.statusCode != 200) return null;
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      final database = await db;
-      await database.insert(
-        'cache',
-        {'key': 'pull', 'payload': res.body, 'fetched_at': DateTime.now().toUtc().toIso8601String()},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      // cache is best-effort: on web (no sqlite) or fresh-VM tests we still return live data
+      try {
+        final database = await db;
+        await database.insert(
+          'cache',
+          {'key': 'pull', 'payload': res.body, 'fetched_at': DateTime.now().toUtc().toIso8601String()},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      } catch (_) {
+        // no sqlite here — cachedServerData() stays null; UI falls back to live-only
+      }
       return data;
     } catch (_) {
       return null; // offline — cached copy remains usable

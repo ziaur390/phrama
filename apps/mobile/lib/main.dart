@@ -103,7 +103,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _data;
-  bool _refreshing = true;
   int _pending = 0;
 
   @override
@@ -114,11 +113,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     final cached = await widget.sync.cachedServerData();
-    setState(() { _data = _data ?? cached; _refreshing = true; });
+    setState(() { _data = _data ?? cached; });
     final fresh = await widget.sync.pullServerData();
     await widget.sync.pushOutbox();
     final count = await widget.sync.pendingCount();
-    if (mounted) setState(() { if (fresh != null) _data = fresh; _refreshing = false; _pending = count; });
+    if (mounted) setState(() { if (fresh != null) _data = fresh; _pending = count; });
   }
 
   @override
