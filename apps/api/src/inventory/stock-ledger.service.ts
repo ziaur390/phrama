@@ -65,6 +65,40 @@ export class StockLedgerService {
     });
   }
 
+
+  /** Weekly expiry report: batches with stock, due within N days, per warehouse. */
+  async expiryReport(days: number, warehouseId?: string) {
+    const until = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    const rows = await this.prisma.stockMovement.groupBy({
+      by: ['productId', 'batchId', 'warehouseId'],
+      where: { ...(warehouseId ? { warehouseId } : {}) },
+      _sum: { delta: true },
+    });
+    const live = rows.filter((r) => (r._sum.delta ?? 0) > 0);
+    if (!live.length) return [];
+    const batches = await this.prisma.batch.findMany({
+      where: { id: { in: live.map((r) => r.batchId) }, expiry: { lte: until } },
+      include: { product: { select: { code: true, name: true } } },
+      orderBy: { expiry: 'asc' },
+    });
+    const bmap = new Map(batches.map((b) => [b.id, b]));
+    const warehouses = await this.prisma.warehouse.findMany();
+    const wmap = new Map(warehouses.map((w) => [w.id, w]));
+    return live
+      .filter((r) => bmap.has(r.batchId))
+      .map((r) => ({
+        productId: r.productId,
+        batchId: r.batchId,
+        batchNo: bmap.get(r.batchId)!.batchNo,
+        expiry: bmap.get(r.batchId)!.expiry,
+        warehouseId: r.warehouseId,
+        warehouseName: wmap.get(r.warehouseId)?.name,
+        productName: bmap.get(r.batchId)!.product.code + ' - ' + bmap.get(r.batchId)!.product.name,
+        qty: r._sum.delta ?? 0,
+        daysToExpiry: Math.ceil((bmap.get(r.batchId)!.expiry.getTime() - Date.now()) / (24 * 60 * 60 * 1000)),
+      }));
+  }
+
   /** Opening Stock Entry — day-one clean start, one movement per batch line. */
   postOpening(userId: string, warehouseId: string, lines: StockLineInput[]) {
     const moves = lines.map((l) => ({

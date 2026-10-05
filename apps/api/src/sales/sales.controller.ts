@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { IsString, IsInt, IsOptional, IsEnum, Min, Max, ValidateNested, ArrayMinSize, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SalesService } from './sales.service';
+import { SalesReturnService } from './returns.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { voucherNumber } from '../finance/finance.service';
 import { Roles, RolesGuard } from '../auth/roles.guard';
@@ -21,6 +22,21 @@ class CreateInvoiceDto {
   @Type(() => InvoiceItemDto)
   @ArrayMinSize(1)
   items!: InvoiceItemDto[];
+}
+
+class CreateReturnDto {
+  @IsInt() invoiceId!: number;
+  @IsOptional() @IsString() memo?: string;
+  @ValidateNested({ each: true })
+  @Type(() => ReturnLineDto)
+  @ArrayMinSize(1)
+  items!: ReturnLineDto[];
+}
+
+class ReturnLineDto {
+  @IsInt() invoiceItemId!: number;
+  @IsInt() @Min(1) qty!: number;
+  @IsIn(['SALEABLE', 'DAMAGED', 'EXPIRED']) disposition!: string;
 }
 
 class VoidDto {
@@ -49,7 +65,7 @@ class NoteDto {
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Controller('sales')
 export class SalesController {
-  constructor(private sales: SalesService, private prisma: PrismaService) {}
+  constructor(private sales: SalesService, private returns: SalesReturnService, private prisma: PrismaService) {}
 
   @Post('invoices')
   @Roles('ADMIN', 'ACCOUNTANT', 'WAREHOUSE')
@@ -71,6 +87,17 @@ export class SalesController {
   @Roles('ADMIN', 'ACCOUNTANT')
   void(@Param('id', ParseIntPipe) id: number, @Body() dto: VoidDto, @Request() req: any) {
     return this.sales.voidInvoice(req.user.userId, id, dto.reason);
+  }
+
+  @Post('returns')
+  @Roles('ADMIN', 'ACCOUNTANT', 'WAREHOUSE')
+  postReturn(@Body() dto: CreateReturnDto, @Request() req: any) {
+    return this.returns.postReturn(req.user.userId, dto as any);
+  }
+
+  @Get('returns')
+  listReturns(@Query('invoiceId') invoiceId?: string, @Query('customerId') customerId?: string) {
+    return this.returns.listReturns({ invoiceId: invoiceId ? Number(invoiceId) : undefined, customerId });
   }
 
   // pricing masters

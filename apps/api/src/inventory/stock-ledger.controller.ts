@@ -3,6 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { IsString, IsInt, IsOptional, ArrayMinSize, ValidateNested, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StockLedgerService } from './stock-ledger.service';
+import { StockLedgerService as _S } from './stock-ledger.service';
 import { Roles, RolesGuard } from '../auth/roles.guard';
 
 class StockLineDto {
@@ -56,6 +57,11 @@ export class InventoryController {
   @Get('movements')
   movements(@Query('productId') productId?: string, @Query('batchId') batchId?: string, @Query('warehouseId') warehouseId?: string) {
     return this.ledger.movementHistory({ productId, batchId, warehouseId });
+  }
+
+  @Get('expiry')
+  expiry(@Query('days') days?: string, @Query('warehouseId') warehouseId?: string) {
+    return this.ledger.expiryReport(days ? Number(days) : 90, warehouseId);
   }
 
   @Post('opening')

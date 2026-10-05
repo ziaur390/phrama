@@ -4,6 +4,7 @@ import { FinanceService } from '../finance/finance.service';
 import { TaxEngineService } from '../tax-engine/tax-engine.service';
 import { bestSlabPct, bonusUnits, priceLine } from './pricing.service';
 import { Prisma } from '@prisma/client';
+import { withRetry } from '../prisma/with-retry';
 
 /**
  * M7 sales engine. One transaction per invoice: FEFO batch allocation (frozen on
@@ -72,7 +73,8 @@ export class SalesService {
   ) {
     if (!dto.items?.length) throw new BadRequestException('Invoice needs at least one item');
 
-    const invoice = await this.prisma.$transaction(
+    const invoice = await withRetry(() =>
+      this.prisma.$transaction(
       async (tx) => {
         const customer = await tx.customer.findUnique({ where: { id: dto.customerId } });
         if (!customer) throw new NotFoundException('Unknown customer');
@@ -221,6 +223,7 @@ export class SalesService {
         return tx.salesInvoice.findUnique({ where: { id: inv.id }, include: { items: { include: { batch: true } } } });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
     );
 
     return { ...invoice!, number: `INV-${pad(invoice!.id)}` };
@@ -258,7 +261,8 @@ export class SalesService {
   /** Void = full reversal: stock back, money back, invoice marked VOID. */
   async voidInvoice(userId: string, id: number, reason: string) {
     if (!reason.trim()) throw new BadRequestException('reason is mandatory on void');
-    const invoice = await this.prisma.$transaction(
+    const invoice = await withRetry(() =>
+      this.prisma.$transaction(
       async (tx) => {
         const inv = await tx.salesInvoice.findUnique({ where: { id }, include: { items: true } });
         if (!inv) throw new NotFoundException();
@@ -310,6 +314,7 @@ export class SalesService {
         });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
     );
     return { ...invoice, number: `INV-${pad(id)}` };
   }

@@ -63,6 +63,7 @@ model Company {
   products      Product[]
   suppliers     Supplier[]
   discountRules DiscountRule[]
+  claims        CompanyClaim[]
   createdAt     DateTime           @default(now())
 }
 
@@ -105,6 +106,7 @@ model Product {
   poItems           PurchaseOrderItem[]
   receiptItems      StockReceiptItem[]
   saleItems         SalesInvoiceItem[]
+  returnItems       SalesReturnItem[]
   discountRules     DiscountRule[]
   bonusRule         BonusRule?
   createdAt         DateTime            @default(now())
@@ -121,6 +123,7 @@ model Batch {
   stockMovements StockMovement[]
   receiptItems   StockReceiptItem[]
   saleItems      SalesInvoiceItem[]
+  returnItems    SalesReturnItem[]
   createdAt      DateTime           @default(now())
 
   @@unique([productId, batchNo])
@@ -153,6 +156,7 @@ model Customer {
   salesmanCustomers   Customer[]          @relation("SalesmanCustomers")
   journalLines        JournalLine[]
   salesInvoices       SalesInvoice[]
+  salesReturns        SalesReturn[]
   openingBalancePaisa Int                 @default(0)
   active              Boolean             @default(true)
   createdAt           DateTime            @default(now())
@@ -187,6 +191,7 @@ model Warehouse {
   stockReceipts  StockReceipt[]
   salesInvoices  SalesInvoice[]
   createdAt      DateTime        @default(now())
+  salesReturns   SalesReturn[]
 }
 
 enum WarehouseKind {
@@ -204,6 +209,8 @@ enum StockDocKind {
   RECEIPT
   SALE
   SALE_VOID
+  RETURN
+  RETURN_OUT
 }
 
 enum StockMoveKind {
@@ -214,6 +221,8 @@ enum StockMoveKind {
   RECEIPT
   SALE
   SALE_VOID
+  RETURN
+  RETURN_OUT
 }
 
 model StockDocument {
@@ -266,6 +275,7 @@ enum Account {
   INVENTORY
   EXPENSE
   OPENING_EQUITY
+  EXPIRY_CLAIMS
 }
 
 enum VoucherKind {
@@ -392,43 +402,45 @@ enum InvoiceStatus {
 }
 
 model SalesInvoice {
-  id          Int                @id @default(autoincrement())
-  customerId  String
-  customer    Customer           @relation(fields: [customerId], references: [id])
-  warehouseId String
-  warehouse   Warehouse          @relation(fields: [warehouseId], references: [id])
-  channel     SalesChannel       @default(FRESH)
-  userId      String
-  bookerId    String?
-  date        DateTime           @default(now())
-  memo        String?
-  status      InvoiceStatus      @default(POSTED)
-  voidReason  String?
-  voidedBy    String?
-  voidedAt    DateTime?
-  stockDocId  String?            @unique
-  stockDoc    StockDocument?     @relation(fields: [stockDocId], references: [id])
-  items       SalesInvoiceItem[]
-  createdAt   DateTime           @default(now())
+  id           Int                @id @default(autoincrement())
+  customerId   String
+  customer     Customer           @relation(fields: [customerId], references: [id])
+  warehouseId  String
+  warehouse    Warehouse          @relation(fields: [warehouseId], references: [id])
+  channel      SalesChannel       @default(FRESH)
+  userId       String
+  bookerId     String?
+  date         DateTime           @default(now())
+  memo         String?
+  status       InvoiceStatus      @default(POSTED)
+  voidReason   String?
+  voidedBy     String?
+  voidedAt     DateTime?
+  stockDocId   String?            @unique
+  stockDoc     StockDocument?     @relation(fields: [stockDocId], references: [id])
+  items        SalesInvoiceItem[]
+  createdAt    DateTime           @default(now())
+  salesReturns SalesReturn[]
 
   @@index([date])
   @@index([customerId])
 }
 
 model SalesInvoiceItem {
-  id               Int          @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   invoiceId        Int
-  invoice          SalesInvoice @relation(fields: [invoiceId], references: [id])
+  invoice          SalesInvoice      @relation(fields: [invoiceId], references: [id])
   productId        String
-  product          Product      @relation(fields: [productId], references: [id])
+  product          Product           @relation(fields: [productId], references: [id])
   batchId          String // frozen FEFO allocation
   qty              Int
   unitPricePaisa   Int // catalog price frozen at post time
-  discountPct      Int          @default(0) // slab + standing combined
-  isBonus          Boolean      @default(false) // FOC: zero price, zero tax
-  taxChargedPaisa  Int          @default(0) // frozen from tax engine on invoice date
-  taxAbsorbedPaisa Int          @default(0)
-  batch            Batch        @relation(fields: [batchId], references: [id])
+  discountPct      Int               @default(0) // slab + standing combined
+  isBonus          Boolean           @default(false) // FOC: zero price, zero tax
+  taxChargedPaisa  Int               @default(0) // frozen from tax engine on invoice date
+  taxAbsorbedPaisa Int               @default(0)
+  batch            Batch             @relation(fields: [batchId], references: [id])
+  salesReturnItems SalesReturnItem[]
 }
 
 model DiscountRule {
@@ -447,4 +459,75 @@ model BonusRule {
   product   Product @relation(fields: [productId], references: [id])
   buyQty    Int
   freeQty   Int
+}
+
+// ── M8: returns, claims. Dispositions keep saleable vs quarantine stock separate;
+// absorbed-GST + expiry claims tracked per company to money-received. ──
+
+enum Disposition {
+  SALEABLE
+  DAMAGED
+  EXPIRED
+}
+
+enum ClaimKind {
+  TAX_ABSORBED
+  EXPIRY
+}
+
+enum ClaimStatus {
+  OPEN
+  SENT
+  PAID
+}
+
+model SalesReturn {
+  id          Int               @id @default(autoincrement())
+  invoiceId   Int
+  invoice     SalesInvoice      @relation(fields: [invoiceId], references: [id])
+  customerId  String
+  customer    Customer          @relation(fields: [customerId], references: [id])
+  // disposition SALEABLE lands here; DAMAGED/EXPIRED land in the Quarantine warehouse
+  warehouseId String
+  warehouse   Warehouse         @relation(fields: [warehouseId], references: [id])
+  userId      String
+  date        DateTime          @default(now())
+  memo        String?
+  items       SalesReturnItem[]
+  createdAt   DateTime          @default(now())
+
+  @@index([invoiceId])
+}
+
+model SalesReturnItem {
+  id                   Int               @id @default(autoincrement())
+  returnId             Int
+  returnDoc            SalesReturn       @relation(fields: [returnId], references: [id])
+  invoiceItemId        Int? // original invoice line (batch + frozen price)
+  invoiceItem          SalesInvoiceItem? @relation(fields: [invoiceItemId], references: [id])
+  productId            String
+  product              Product           @relation(fields: [productId], references: [id])
+  batchId              String
+  batch                Batch             @relation(fields: [batchId], references: [id])
+  qty                  Int
+  unitNetPaisa         Int // frozen: invoice item net per unit
+  taxChargedPropPaisa  Int // frozen: pro-rata charged tax for returned qty
+  taxAbsorbedPropPaisa Int // frozen: pro-rata absorbed tax for returned qty
+  disposition          Disposition
+}
+
+model CompanyClaim {
+  id              Int         @id @default(autoincrement())
+  companyId       String
+  company         Company     @relation(fields: [companyId], references: [id])
+  kind            ClaimKind
+  amountPaisa     Int
+  status          ClaimStatus @default(OPEN)
+  memo            String?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  paidAmountPaisa Int?
+  createdAt       DateTime    @default(now())
+
+  @@index([companyId, status])
 }
