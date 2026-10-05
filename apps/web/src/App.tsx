@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import Login from './pages/Login';
 import { api, clearSession, getUser, type AuthUser } from './lib/api';
 import { Companies, Products, Customers, Territories, Warehouses, Suppliers, Users } from './pages/Masters';
+import { Dashboard } from './pages/Dashboard';
 
 const TABS = [
+  { id: 'dashboard', label: 'Dashboard', comp: Dashboard, roles: ['ADMIN'] },
   { id: 'companies', label: 'Companies', comp: Companies, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
   { id: 'products', label: 'Products', comp: Products, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
   { id: 'customers', label: 'Customers', comp: Customers, roles: ['ADMIN', 'ACCOUNTANT', 'BOOKER', 'SALESMAN'] },
@@ -16,7 +18,7 @@ const TABS = [
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(() => getUser());
-  const [tab, setTab] = useState<string>('companies');
+  const [tab, setTab] = useState<string>('dashboard');
 
   useEffect(() => {
     document.title = 'PHRAMA';
