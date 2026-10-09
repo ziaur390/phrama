@@ -76,8 +76,8 @@ describe('Reports (e2e)', () => {
 
   it('non-admin cannot open the dashboard (owner-only)', async () => {
     const bookerName = `bkr${suffix}`;
-    await post('/users', { username: bookerName, password: 'booker123', fullName: 'B', role: 'BOOKER' }).expect(201);
-    const bk = (await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker123' })).body.accessToken;
+    await post('/users', { username: bookerName, password: 'booker1234', fullName: 'B', role: 'BOOKER' }).expect(201);
+    const bk = (await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker1234' })).body.accessToken;
     await request(app.getHttpServer()).get('/reports/dashboard').set('Authorization', `Bearer ${bk}`).expect(403);
     // but booker CAN read a customer statement (his collecting job)
     await request(app.getHttpServer()).get(`/reports/customer-statement?customerId=${customerId}&from=2000-01-01&to=2099-01-01`).set('Authorization', `Bearer ${bk}`).expect(200);

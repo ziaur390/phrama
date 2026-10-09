@@ -48,14 +48,14 @@ describe('Auth (e2e)', () => {
     const res = await request(app.getHttpServer())
       .post('/users')
       .set('Authorization', `Bearer ${token}`)
-      .send({ username: bookerName, password: 'booker123', fullName: 'Test Booker', role: 'BOOKER' })
+      .send({ username: bookerName, password: 'booker1234', fullName: 'Test Booker', role: 'BOOKER' })
       .expect(201);
     expect(res.body.role).toBe('BOOKER');
   });
 
   it('new booker cannot access admin-only POST /users → 403', async () => {
     const bookerToken = (
-      await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker123' })
+      await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker1234' })
     ).body.accessToken;
     await request(app.getHttpServer())
       .post('/users')

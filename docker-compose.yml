@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: phrama
-      POSTGRES_PASSWORD: phrama
-      POSTGRES_DB: phrama
+      POSTGRES_USER: ${POSTGRES_USER:-phrama}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-phrama}  # dev default; set a real one in .env for any exposed deployment
+      POSTGRES_DB: ${POSTGRES_DB:-phrama}
     ports:
       - "5432:5432"
     volumes:
@@ -30,7 +30,7 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     environment:
-      DATABASE_URL: postgres://phrama:phrama@db:5432/phrama
+      DATABASE_URL: postgres://${POSTGRES_USER:-phrama}:${POSTGRES_PASSWORD:-phrama}@db:5432/${POSTGRES_DB:-phrama}
       REDIS_URL: redis://redis:6379
       PORT: "4000"
     depends_on:

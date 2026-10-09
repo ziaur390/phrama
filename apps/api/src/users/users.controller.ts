@@ -7,7 +7,7 @@ import { UsersService } from './users.service';
 
 export class CreateUserDto {
   @IsString() username!: string;
-  @IsString() @MinLength(6) password!: string;
+  @IsString() @MinLength(8) password!: string;
   @IsString() fullName!: string;
   @IsString() role!: string;
 }

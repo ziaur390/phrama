@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -16,7 +17,11 @@ import { RolesGuard } from './auth/roles.guard';
 import { PrismaExceptionFilterProvider } from './prisma/prisma-exception.filter';
 
 @Module({
-  imports: [PrismaModule, AuthModule, UsersModule, CatalogModule, InventoryModule, FinanceModule, ProcurementModule, SalesModule, ClaimsModule, ReportsModule, SyncModule],
-  providers: [PrismaExceptionFilterProvider, { provide: APP_GUARD, useClass: JwtAuthGuard }],
+  imports: [
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 120 }, // whole API: 120 req/min per IP
+    ]),
+    PrismaModule, AuthModule, UsersModule, CatalogModule, InventoryModule, FinanceModule, ProcurementModule, SalesModule, ClaimsModule, ReportsModule, SyncModule],
+  providers: [PrismaExceptionFilterProvider, { provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: JwtAuthGuard }],
 })
 export class AppModule {}

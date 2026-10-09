@@ -18,5 +18,7 @@ COPY apps/api/src apps/api/src
 RUN npm run build -w apps/api
 
 WORKDIR /app/apps/api
+RUN chown -R node:node /app
+USER node
 EXPOSE 4000
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

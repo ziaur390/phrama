@@ -151,8 +151,8 @@ describe('Finance (e2e)', () => {
 
   it('booker can read customer ledger but cannot post vouchers', async () => {
     const bookerName = `bk${suffix}`;
-    await post('/users', { username: bookerName, password: 'booker123', fullName: 'B', role: 'BOOKER' }).expect(201);
-    const bk = (await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker123' })).body.accessToken;
+    await post('/users', { username: bookerName, password: 'booker1234', fullName: 'B', role: 'BOOKER' }).expect(201);
+    const bk = (await request(app.getHttpServer()).post('/auth/login').send({ username: bookerName, password: 'booker1234' })).body.accessToken;
     await request(app.getHttpServer()).get(`/finance/customers/${customerId}/ledger`).set('Authorization', `Bearer ${bk}`).expect(200);
     await request(app.getHttpServer())
       .post('/finance/vouchers')

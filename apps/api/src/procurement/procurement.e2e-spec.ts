@@ -140,8 +140,8 @@ describe('Procurement (e2e)', () => {
 
   it('warehouse user can post receipts; booker cannot', async () => {
     const whName = `wh${suffix}`;
-    await post('/users', { username: whName, password: 'whpass123', fullName: 'W', role: 'WAREHOUSE' }).expect(201);
-    const whToken = (await request(app.getHttpServer()).post('/auth/login').send({ username: whName, password: 'whpass123' })).body.accessToken;
+    await post('/users', { username: whName, password: 'whpass1234', fullName: 'W', role: 'WAREHOUSE' }).expect(201);
+    const whToken = (await request(app.getHttpServer()).post('/auth/login').send({ username: whName, password: 'whpass1234' })).body.accessToken;
 
     const po4 = await request(app.getHttpServer())
       .post('/procurement/purchase-orders')
