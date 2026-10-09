@@ -68,7 +68,7 @@ export class SalesController {
   constructor(private sales: SalesService, private returns: SalesReturnService, private prisma: PrismaService) {}
 
   @Post('invoices')
-  @Roles('ADMIN', 'ACCOUNTANT', 'WAREHOUSE')
+  @Roles('ADMIN', 'ACCOUNTANT', 'WAREHOUSE', 'COUNTER')
   post(@Body() dto: CreateInvoiceDto, @Request() req: any) {
     return this.sales.postInvoice(req.user.userId, dto as any);
   }

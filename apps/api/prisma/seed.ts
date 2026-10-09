@@ -20,6 +20,12 @@ async function main() {
     update: {},
     create: { name: 'Quarantine', kind: 'QUARANTINE' },
   });
+  // walk-in tag account for counter sales (their money goes to CASH, ledger stays clean)
+  await prisma.customer.upsert({
+    where: { code: 'WALKIN' },
+    update: {},
+    create: { code: 'WALKIN', name: 'Counter sale (walk-in)', type: 'REGULAR', filerStatus: 'NON_FILER' },
+  });
   // Date-effective tax rates (BUSINESS-MAPPING §5.2: FILER 0.5%, NON-FILER 2.5%)
   const epoch = new Date('2000-01-01');
   await prisma.taxRate.upsert({

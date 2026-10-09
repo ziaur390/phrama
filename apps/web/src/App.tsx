@@ -4,6 +4,7 @@ import { clearSession, getUser, type AuthUser } from './lib/api';
 import { Companies, Products, Customers, Territories, Warehouses, Suppliers, Users } from './pages/Masters';
 import { Dashboard } from './pages/Dashboard';
 import { Orders } from './pages/Orders';
+import { Counter } from './pages/Counter';
 
 interface Tab {
   id: string;
@@ -19,6 +20,7 @@ const GROUPS: { title: string; tabs: Tab[] }[] = [
     tabs: [
       { id: 'orders', label: 'Order queue', comp: Orders, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE'] },
       { id: 'customers', label: 'Customers', comp: Customers, roles: ['ADMIN', 'ACCOUNTANT', 'BOOKER', 'SALESMAN'] },
+      { id: 'counter', label: 'Counter sale', comp: Counter, roles: ['ADMIN', 'ACCOUNTANT', 'WAREHOUSE', 'COUNTER'] },
     ],
   },
   {
