@@ -29,46 +29,53 @@ export function Orders() {
   });
   const invoice = useMutation({
     mutationFn: (id: number) => api(`/sync/orders/${id}/invoice`, { method: 'POST' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['/sync/orders'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['/sync/orders'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 
   return (
-    <section>
-      <h2>Booker Order Queue</h2>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+    <section className="sheet queue">
+      <h2>Order queue</h2>
+      <p className="sheet-caption">Orders taken in the field, as they arrive. Generate the invoice, then dispatch against the pick list.</p>
+
+      <div className="queue-tabs">
         {(['RECEIVED', 'INVOICED'] as const).map((s) => (
-          <button key={s} className={filter === s ? 'tab active' : 'tab'} onClick={() => setFilter(s)}>
-            {s}
+          <button key={s} className={filter === s ? 'active' : ''} onClick={() => setFilter(s)}>
+            {s === 'RECEIVED' ? 'Waiting' : 'Invoiced'}
           </button>
         ))}
       </div>
+
       {isPending && <p>Loading…</p>}
-      {orders.length === 0 && !isPending && <p>No {filter.toLowerCase()} orders.</p>}
+      {orders.length === 0 && !isPending && (
+        <p className="sheet-caption">
+          {filter === 'RECEIVED'
+            ? 'Nothing waiting. Orders from the bookers land here as their phones find signal.'
+            : 'No invoiced orders yet.'}
+        </p>
+      )}
+
       {orders.map((o) => {
         const totalPaisa = o.items.reduce((s, i) => s + i.qty * ((i as any).product?.salePricePaisa ?? 0), 0);
         return (
-          <div key={o.id} style={{ background: '#fff', border: '1px solid #e7e5e4', borderRadius: 10, padding: '0.8rem 1rem', marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-              <strong>{o.number}</strong>
-              <span>{o.customer?.name ?? "?"}</span>
-              {o.viaCustomer && (
-                <span style={{ color: '#0a7d32', fontWeight: 600 }}>via {o.viaCustomer.name} — billed to him</span>
-              )}
-              <span style={{ color: '#a8a29e', fontSize: 12 }}>
-                booked {new Date(o.bookedAt).toLocaleString()}
-              </span>
-              <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{paisaToRupees(totalPaisa)}</span>
+          <div key={o.id} className="order-slip">
+            <div className="head">
+              <span className="doc-no">{o.number}</span>
+              <span className="shop">{o.customer?.name ?? '?'}</span>
+              {o.viaCustomer && <span className="via">via {o.viaCustomer.name} — bill him</span>}
+              <span className="meta">booked {new Date(o.bookedAt).toLocaleString()}</span>
+              <span className="amount">{paisaToRupees(totalPaisa)}</span>
               {o.status === 'RECEIVED' ? (
                 <button className="link" disabled={invoice.isPending} onClick={() => invoice.mutate(o.id)}>
                   {invoice.isPending ? 'Generating…' : 'Generate invoice'}
                 </button>
               ) : (
-                <span style={{ color: '#0a7d32', fontSize: 12 }}>INV-{String(o.invoiceId).padStart(6, '0')}</span>
+                <span className="done">INV-{String(o.invoiceId).padStart(6, '0')}</span>
               )}
             </div>
-            <div style={{ fontSize: 13, color: '#57534e', marginTop: 4 }}>
-              {o.items.map((i) => `${i.qty} × ${(i as any).product?.code ?? i.productId}`).join(', ')}
-            </div>
+            <div className="lines">{o.items.map((i) => `${i.qty} × ${(i as any).product?.code ?? '?'}`).join(', ')}</div>
             {invoice.isError && <p className="error">{(invoice.error as Error).message}</p>}
           </div>
         );

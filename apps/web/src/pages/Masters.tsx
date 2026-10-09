@@ -88,6 +88,7 @@ export function Companies() {
   return (
     <section>
       <h2>Companies</h2>
+      <p className="sheet-caption">The manufacturers. Their tax policy decides per invoice line whether the store pays the tax or the company absorbs it.</p>
       <Table head={['Code', 'Name', 'Tax policy (current)']}>
         {(companies ?? []).map((c) => {
           const current = [...c.taxPolicies].sort(
@@ -104,7 +105,7 @@ export function Companies() {
                   title={`Set ${policy} from ${effectiveFrom}`}
                   onClick={() => setPolicyMut.mutate({ id: c.id })}
                 >
-                  → set {policy} from {effectiveFrom}
+                  Set {policy} from {effectiveFrom}
                 </button>
               </td>
             </tr>
@@ -159,6 +160,7 @@ export function Products() {
   return (
     <section>
       <h2>Products</h2>
+      <p className="sheet-caption">Same codes as the old order pads, so staff recognize every item.</p>
       <Table head={['Code', 'Name', 'Company', 'Pack', 'Sale price (Rs)']}>
         {(products ?? []).map((p) => (
           <tr key={p.id}>
@@ -237,6 +239,7 @@ export function Customers() {
   return (
     <section>
       <h2>Customers</h2>
+      <p className="sheet-caption">The medical stores. Filer status is admin-only and audit-logged; it sets the tax rate on their invoices.</p>
       <Table head={['Code', 'Name', 'Type', 'Filer status', 'Credit limit (Rs)', 'Territory', 'Salesman']}>
         {(customers ?? []).map((c) => (
           <tr key={c.id}>
@@ -325,7 +328,8 @@ export function Territories() {
 
   return (
     <section>
-      <h2>Territories (weekly calendar)</h2>
+      <h2>Areas</h2>
+      <p className="sheet-caption">Each area has its own weekly order day and delivery day; the booker app shows today's areas.</p>
       <Table head={['Name', 'Order day', 'Delivery day']}>
         {(territories ?? []).map((t) => (
           <tr key={t.id}>
@@ -377,7 +381,8 @@ export function Warehouses() {
 
   return (
     <section>
-      <h2>Warehouses & Vans</h2>
+      <h2>Warehouses & vans</h2>
+      <p className="sheet-caption">Where stock sits: the main warehouse, vans on the road, and quarantine for goods that must never be resold.</p>
       <Table head={['Name', 'Kind']}>
         {(warehouses ?? []).map((w) => (
           <tr key={w.id}>
@@ -421,6 +426,7 @@ export function Suppliers() {
   return (
     <section>
       <h2>Suppliers</h2>
+      <p className="sheet-caption">The companies you buy from; purchase orders and payables are tracked against them.</p>
       <Table head={['Company code', 'Company name']}>
         {(suppliers ?? []).map((s) => (
           <tr key={s.id}>
@@ -465,6 +471,7 @@ export function Users() {
   return (
     <section>
       <h2>Users</h2>
+      <p className="sheet-caption">Everyone gets only what their role needs. Passwords need at least 8 characters.</p>
       {error && <p className="error">{(error as Error).message}</p>}
       <Table head={['Username', 'Full name', 'Role', 'Active']}>
         {(users ?? []).map((u) => (
@@ -484,7 +491,7 @@ export function Users() {
         }}
       >
         <input placeholder="Username" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} required />
-        <input placeholder="Password (min 6)" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required />
+        <input placeholder="Password (min 8)" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required />
         <input placeholder="Full name" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} required />
         <select value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
           {['ADMIN', 'ACCOUNTANT', 'WAREHOUSE', 'BOOKER', 'SALESMAN', 'COUNTER'].map((r) => (

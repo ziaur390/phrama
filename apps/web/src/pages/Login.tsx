@@ -37,7 +37,7 @@ export default function Login({ onLoggedIn }: { onLoggedIn: (user: AuthUser) => 
           login.mutate();
         }}
       >
-        <h1>PHRAMA</h1>
+        <h1>PHRAMA<span>+</span></h1>
         <p className="sub">Distribution Management System</p>
         <label>
           Username
