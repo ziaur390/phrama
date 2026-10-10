@@ -220,7 +220,10 @@ export class SalesService {
           },
         });
 
-        return tx.salesInvoice.findUnique({ where: { id: inv.id }, include: { items: { include: { batch: true } } } });
+        return tx.salesInvoice.findUnique({
+          where: { id: inv.id },
+          include: { items: { include: { product: { select: { code: true, name: true } }, batch: true } } },
+        });
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
       ),
